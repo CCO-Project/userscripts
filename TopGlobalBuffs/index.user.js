@@ -215,7 +215,7 @@
                     time.push(buff.endTime);
 
                     if (buff.isShort === false) {
-                        const thisPercent = ("  " + buff.percent).substr(-3);
+                        const thisPercent = ("  " + GlobalBuffsIdMap[buff.id].each).substr(-3).replace(/\ /g, "&nbsp;");
                         const comboInfo = `[${thisPercent}%] x${buff.stack}`;
                         combo.push(comboInfo);
                         maxCombo = Math.max(maxCombo, combo.length);
@@ -247,7 +247,8 @@
             }
         });
 
-        mainPanel.style.marginTop = `${(maxCombo - 1) * 10 + 50}px`;
+        const marginTop = Math.min((maxCombo - 1) * 10 + 50, 50);
+        mainPanel.style.marginTop = `${marginTop}px`;
     }
 
     /**
@@ -347,6 +348,7 @@
 
     GM_addStyle(` 
         .global-buffs-area {
+            font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
             width: 512px;
             display: inline-block;
             user-select: none;
@@ -358,7 +360,7 @@
             margin-left: 4px;
             background-color: #333;
             border-radius: 4px;
-            width: 4.75rem;
+            width: 5.25rem;
             height: 1.5rem;
         }
         
@@ -380,7 +382,6 @@
         }
         
         ge-time {
-            font-family: monospace;
             position: absolute;
             display: inline-block;
             font-size: 0.5rem;
