@@ -218,12 +218,13 @@
                         const thisPercent = ("  " + GlobalBuffsIdMap[buff.id].each).substr(-3).replace(/\ /g, "&nbsp;");
                         const comboInfo = `[${thisPercent}%] x${buff.stack}`;
                         combo.push(comboInfo);
-                        maxCombo = Math.max(maxCombo, combo.length);
                         totalPercent += buff.percent;
                         totalPercent = Math.min(totalPercent, value.max);
                     }
                 }
             });
+
+            maxCombo = Math.max(maxCombo, combo.length);
 
             if (showFlag === false) {
                 return;
@@ -247,7 +248,7 @@
             }
         });
 
-        const marginTop = Math.min((maxCombo - 1) * 10 + 50, 50);
+        const marginTop = Math.max((maxCombo - 1) * 10 + 50, 50);
         mainPanel.style.marginTop = `${marginTop}px`;
     }
 
