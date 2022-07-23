@@ -1,6 +1,8 @@
 # [Module] CCO: 中間頁上方顯示全球效應
 
-注意：需安裝核心模組 [[Core] CCO 自定義工具核心模組](../CoreModule/index.user.js)
+注意：需安裝核心模組 [[Core] CCO 自定義工具核心模組](../CoreModule/readme.md)
+
+[點我安裝這個模組](https://github.com/CCO-Project/userscripts/raw/master/TopGlobalBuffs/index.user.js)
 
 嘗試在原生介面上加上全球效應顯示。  
 沒有任何使用任何額外請求，不會造成伺服器的負擔。
