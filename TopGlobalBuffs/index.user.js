@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Module] CCO: 顯示全球增益
 // @namespace    -
-// @version      1.1
+// @version      1.2
 // @description  在頁面上方顯示全球增益，減少確認增益時的操作
 // @author       CCO Project
 // @match        https://cybercodeonline.com/*
@@ -9,8 +9,24 @@
 // @license      MIT
 // @grant        GM_addStyle
 // @run-at       document-start
-// @compatible   chrome >= 76
+// @compatible   chrome >= 80
 // ==/UserScript==
+
+/**
+ * Special syntax
+ * - JavaScript: Nullish coalescing operator (??) 
+ *   - Chrome >= 80
+ *   - Edge >= 80
+ *   - Firefox >= 72
+ * - JavaScript: Optional chaining operator (?.)
+ *   - Chrome >= 80
+ *   - Edge >= 80
+ *   - Firefox >= 74
+ * - CSS: backdrop-filter
+ *   - Chrome >= 76
+ *   - Edge >= 79
+ *   - Firefox >= 103
+ */
 
 unsafeWindow.__debug_all_errors = [];
 
@@ -148,8 +164,8 @@ unsafeWindow.__debug_all_errors = [];
         const buffs = [];
         buffs.push(new Buff(false, "BTC_MULTIPLIER_GLOBAL", "交易", Date.now() + 1087 * 1000, 12, 100));
         buffs.push(new Buff(false, "EXP_MULTIPLIER_GLOBAL", "額葉", Date.now() + 1200 * 1000, 87, 80));
-        buffs.push(new Buff(false, "TIME_REDUCTION_GLOBAL_STACKABLE", "突觸", Date.now() + 585 * 1000, 14, 70));
         buffs.push(new Buff(false, "TIME_REDUCTION_GLOBAL_STACKABLE_2", "突觸", Date.now() + 932 * 1000, 21, 80));
+        buffs.push(new Buff(false, "TIME_REDUCTION_GLOBAL_STACKABLE", "突觸", Date.now() + 65 * 1000, 14, 70));
         buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_5", "校準", Date.now() + 70 * 1000, 1, 300));
         buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_4", "校準", Date.now() + 68 * 1000, 2, 200));
         buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_3", "校準", Date.now() + 66 * 1000, 2, 100));
@@ -157,7 +173,7 @@ unsafeWindow.__debug_all_errors = [];
         buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_1", "校準", Date.now() + 64 * 1000, 2, 10));
         buffs.push(new Buff(true, "RNG_INTERFERER", "RNG", Date.now() + 15 * 1000));
         buffs.push(new Buff(true, "UPGRADE_NO_BREAK_GLOBAL", "防爆", Date.now() + 18 * 1000));
-        
+
         console.info(buffs);
         updateUi(buffs);
     };
@@ -197,12 +213,6 @@ unsafeWindow.__debug_all_errors = [];
 
                 const buffsArea = document.createElement("div");
                 let mainOffsetLeft = 0;
-                setInterval(() => {
-                    if (mainPanel.offsetLeft != mainOffsetLeft) {
-                        mainOffsetLeft = mainPanel.offsetLeft;
-                        buffsArea.style.left = `${mainOffsetLeft}px`;
-                    }
-                }, 1);
 
                 buffsArea.style.cssText = "position: absolute; padding: 8px;";
                 buffsArea.classList.add("global-buffs-area");
@@ -225,6 +235,8 @@ unsafeWindow.__debug_all_errors = [];
         const mainPanel = document.querySelector("#main");
         const availableBuffs = buffs.filter(buff => Date.now() < buff.endTime);
         let maxCombo = 0;
+
+        buffsArea.__internal_variable_buffs = buffs;
 
         buffsArea.innerHTML = "";
         timeoutIds.forEach(e => clearTimeout(e));
@@ -251,7 +263,8 @@ unsafeWindow.__debug_all_errors = [];
                     time.push(buff.endTime.toString());
 
                     if (buff.isShort === false) {
-                        const thisPercent = GlobalBuffsIdMap[buff.id].each.toString().padStart(3, ' ').replace(/\ /g, "&nbsp;");
+                        const padding = GlobalBuffsIdMap[buff.id].type === "校準" ? 3 : 2;
+                        const thisPercent = GlobalBuffsIdMap[buff.id].each.toString().padStart(padding, ' ').replace(/\ /g, "&nbsp;");
                         const comboInfo = `[${thisPercent}%] x${buff.stack}`;
                         combo.push(comboInfo);
                         totalPercent += buff.percent;
@@ -287,9 +300,9 @@ unsafeWindow.__debug_all_errors = [];
 
         if (buffsArea.children.length === 0) {
             buffsArea.innerHTML = EmptyMessage[LANG];
-            initDrag(".global-buffs-area");
         }
 
+        initDrag(".global-buffs-area");
         buffsArea.style.height = `${Math.max((maxCombo - 1) * 17 + 60, 60)}px`;
     }
 
@@ -386,13 +399,13 @@ unsafeWindow.__debug_all_errors = [];
                 }
 
                 const totalPercent = endTime.filter(
-                    t => (t - Date.now()) < threshold
+                    t => (t - Date.now()) > threshold
                 ).reduce(
                     (result, t) => result += options.percent ? options.percent : 0,
-                    -1
+                    0
                 );
 
-                if (totalPercent === -1 || totalPercent < GlobalBuffsTypeMap[options.typeId]) {
+                if (totalPercent === 0 || totalPercent < GlobalBuffsTypeMap[options.typeId].max) {
                     ge.classList.add("red");
                 }
             }, Math.max(diffMs - threshold, 0));
@@ -412,51 +425,73 @@ unsafeWindow.__debug_all_errors = [];
     function getTimeString(endTimeHTML) {
         const ms = endTimeHTML.match(/\d+/)[0] - 0;
         const now = Date.now();
-        const diff = Math.floor((ms - now) / 1000);
+        const diff = Math.ceil((ms - now) / 1000);
         const min = (Math.floor(diff / 60)).toString().padStart(2, "0");
         const sec = (diff % 60).toString().padStart(2, "0");
 
-        return endTimeHTML.replace(ms, `(${min}:${sec})`);
+        return endTimeHTML.replace(ms, `${min}:${sec}`);
     }
 
     /**
-     * 可拖移視窗化
+     * 可拖移視窗化  
+     * 原作者：ChaosOp (~v1.1)
      * 
      * @author ChaosOp <https://github.com/ChaosOp>
      * @param {string} selector
      */
     function initDrag(selector) {
-        let dragElement = document.querySelector(selector);
+        /** @type {HTMLElement} */
+        const dragElement = document.querySelector(selector);
         if (dragElement.initedDrag) return;
 
-        let eventList = (window.ontouchstart === undefined) ?
+
+        const eventList = (window.ontouchstart === undefined) ?
             (['mousedown', 'mousemove', 'mouseup'])
             :
             (['touchstart', 'touchmove', 'touchend']);
 
-        let [startEvt, moveEvt, endEvt] = eventList;
+        const [startEvt, moveEvt, endEvt] = eventList;
 
+        if (localStorage.tempPos) {
+            setElementPos(dragElement, ...(JSON.parse(localStorage.tempPos)));
+        }
 
-        if (localStorage.tempPos) setElementPos(dragElement, ...(JSON.parse(localStorage.tempPos)));
         dragElement.style.cursor = 'move';
         dragElement.initedDrag = true;
 
+        /**
+         * 開始（按下鼠標）時的控制函式
+         */
         dragElement.addEventListener(startEvt, (dragEvent) => {
-
             dragEvent.preventDefault();
 
-            let startPos = getEventPos(dragEvent);
+            const startPos = getEventPos(dragEvent);
+            const distance = ["Left", "Top"].map((type, i) => startPos[i] - dragElement[`offset${type}`]);
 
-            let distance = ["Left", "Top"].map((type, i) => startPos[i] - dragElement[`offset${type}`]);
+            /**
+             * 拖移時的控制函式
+             * 
+             * @param {Event} event
+             */
+            const moveHandler = (event) => {
+                const border = ["Width", "Height"].map(
+                    type => document.documentElement[`client${type}`] - dragElement[`offset${type}`]
+                );
+                const position = pos = getEventPos(event).map(
+                    (pos, i) => Math.min(
+                        Math.max(pos - distance[i], 0),
+                        border[i]
+                    )
+                );
 
-            let moveHandler = (event) => {
-                const border = document.documentElement.clientWidth - dragElement.offsetWidth;
-                let pos = getEventPos(event).map((pos, i) => Math.min(Math.max(pos - distance[i], 0), border));
 
-                setElementPos(dragElement, ...pos);
+                setElementPos(dragElement, ...position);
             };
 
-            let endHandler = () => {
+            /**
+             * 結束（釋放鼠標）時的控制函式
+             */
+            const endHandler = () => {
                 dragElement.removeEventListener(moveEvt, moveHandler);
                 dragElement.removeEventListener(endEvt, endHandler);
             };
@@ -465,10 +500,23 @@ unsafeWindow.__debug_all_errors = [];
             dragElement.addEventListener(endEvt, endHandler);
         });
 
+        /**
+         * 取得事件觸發座標
+         * 
+         * @param {Event} event
+         * @returns {[number, number]}
+         */
         function getEventPos(event) {
             return ["clientX", "clientY"].map((type) => event.touches?.[0][type] ?? event[type]);
         }
 
+        /**
+         * 設定並保存座標
+         * 
+         * @param {HTMLElement} element
+         * @param {number} left
+         * @param {number} top
+         */
         function setElementPos(element, left, top) {
             element.style.left = `${left}px`;
             element.style.top = `${top}px`;
@@ -495,7 +543,7 @@ unsafeWindow.__debug_all_errors = [];
             background-color: #333c;
             border-radius: 4px;
             width: fit-content;
-            min-width: 125px;
+            min-width: 110px;
             height: 24px;
         }
 
