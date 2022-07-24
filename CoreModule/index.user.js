@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         [Core] CCO 自定義工具核心模組
 // @namespace    -
-// @version      0.1
-// @description  RT
+// @version      1.0
+// @description  安裝其它模組前必須先安裝這個核心模組
 // @author       CCO Project
-// @include      https://cybercodeonline.com/*
+// @match        https://cybercodeonline.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=cybercodeonline.com
 // @license      MIT
 // @grant        none
