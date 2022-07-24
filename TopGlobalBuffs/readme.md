@@ -1,4 +1,4 @@
-# [Module] CCO: 中間頁上方顯示全球效應
+# [Module] CCO: 顯示全球增益
 
 注意：需安裝核心模組 [[Core] CCO 自定義工具核心模組](../CoreModule/readme.md)
 
@@ -14,10 +14,10 @@
   - 顯示時間精準到秒鐘
   - 只顯示六種特定效應：
     - 突觸 Synapse
-    - 額葉 Fntl.
-    - 交易 Trade
-    - 校準 Cali.
-    - 防爆 Prot.
+    - 額葉 Frontal
+    - 交易 Transaction
+    - 校準 Calibration
+    - 防爆 Cali. Safety
     - RNG RNG
 
 ## 圖片參考

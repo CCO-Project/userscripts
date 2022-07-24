@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         [Module] CCO: 中間頁上方顯示全球增益
+// @name         [Module] CCO: 顯示全球增益
 // @namespace    -
-// @version      0.1
-// @description  在中間頁上方顯示全球增益，減少確認增益時的操作
+// @version      1.0
+// @description  在頁面上方顯示全球增益，減少確認增益時的操作
 // @author       CCO Project
-// @include      https://cybercodeonline.com/*
+// @match        https://cybercodeonline.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=cybercodeonline.com
 // @license      MIT
 // @grant        GM_addStyle
@@ -12,18 +12,23 @@
 // ==/UserScript==
 
 (function () {
+    const EmptyMessage =  {
+        en: "沒有全球效應",
+        zh: "No Global Effect."
+    };
+
     const GlobalBuffsTypeMap = {
         "突觸": {
             lang: {
-                en: "Syna.",
+                en: "Synapse",
                 zh: "突觸"
             },
-            ids: ["TIME_REDUCTION_GLOBAL_STACKABLE", "TIME_REDUCTION_GLOBAL_STACKABLE_2"],
+            ids: ["", "TIME_REDUCTION_GLOBAL_STACKABLE_2"],
             max: 80
         },
         "額葉": {
             lang: {
-                en: "Fntl.",
+                en: "Frontal",
                 zh: "額葉"
             },
             ids: ["EXP_MULTIPLIER_GLOBAL"],
@@ -31,7 +36,7 @@
         },
         "交易": {
             lang: {
-                en: "Trade",
+                en: "Transaction",
                 zh: "交易"
             },
             ids: ["BTC_MULTIPLIER_GLOBAL"],
@@ -39,7 +44,7 @@
         },
         "校準": {
             lang: {
-                en: "Cali.",
+                en: "Calibration",
                 zh: "校準"
             },
             ids: ["UPGRADE_CHANCE_GLOBAL_1", "UPGRADE_CHANCE_GLOBAL_2", "UPGRADE_CHANCE_GLOBAL_3", "UPGRADE_CHANCE_GLOBAL_4", "UPGRADE_CHANCE_GLOBAL_5"],
@@ -47,7 +52,7 @@
         },
         "防爆": {
             lang: {
-                en: "Prot.",
+                en: "Cali. Safety",
                 zh: "防爆"
             },
             ids: ["UPGRADE_NO_BREAK_GLOBAL"]
@@ -74,7 +79,7 @@
         },
         EXP_MULTIPLIER_GLOBAL: {
             type: "額葉",
-            each: 40,
+            each: 80,
             limit: 80
         },
         BTC_MULTIPLIER_GLOBAL: {
@@ -174,7 +179,6 @@
                 buffsArea.style.cssText = "position: absolute; padding: 8px;";
                 buffsArea.classList.add("global-buffs-area");
 
-                mainPanel.style.cssText = "margin-top: 50px; border-top: 1px dashed gray";
                 mainPanel.insertAdjacentElement("beforebegin", buffsArea);
             }
         }, 1);
@@ -190,6 +194,7 @@
         const buffsArea = document.querySelector(".global-buffs-area");
         /** @type {HTMLElement} */
         const mainPanel = document.querySelector("#main");
+        const availableBuffs = buffs.filter(buff => Date.now() < buff.endTime);
         let maxCombo = 0;
 
         buffsArea.innerHTML = "";
@@ -199,7 +204,7 @@
         intervalIds.length = 0;
 
         Object.entries(GlobalBuffsTypeMap).forEach(([type, value]) => {
-            const intersectionBuffs = buffs.filter(buff => value.ids.includes(buff.id));
+            const intersectionBuffs = availableBuffs.filter(buff => value.ids.includes(buff.id));
 
             const combo = [];
             const time = [];
@@ -215,7 +220,7 @@
                     time.push(buff.endTime);
 
                     if (buff.isShort === false) {
-                        const thisPercent = ("  " + GlobalBuffsIdMap[buff.id].each).substr(-3).replace(/\ /g, "&nbsp;");
+                        const thisPercent = GlobalBuffsIdMap[buff.id].each.toString().padStart(3, ' ').replace(/\ /g, "&nbsp;");
                         const comboInfo = `[${thisPercent}%] x${buff.stack}`;
                         combo.push(comboInfo);
                         totalPercent += buff.percent;
@@ -245,11 +250,13 @@
 
                 intervalIds.push(ge.intervalId);
                 buffsArea.insertAdjacentElement("beforeend", ge.element);
+                initDrag(".global-buffs-area");
+            } else {
+                buffsArea.innerHTML = EmptyMessage[LANG];
             }
         });
 
-        const marginTop = Math.max((maxCombo - 1) * 10 + 50, 50);
-        mainPanel.style.marginTop = `${marginTop}px`;
+        buffsArea.style.height = `${Math.max((maxCombo - 1) * 17 + 60, 60)}px`;
     }
 
     /**
@@ -341,18 +348,78 @@
     function getTimeString(ms) {
         const now = Date.now();
         const diff = Math.floor((ms - now) / 1000);
-        const min = ("0" + Math.floor(diff / 60)).substr(-2);
-        const sec = ("0" + diff % 60).substr(-2);
+        const min = (Math.floor(diff / 60)).toString().padStart(2, "0");
+        const sec = (diff % 60).toString().padStart(2, "0");
 
-        return `${min}:${sec}`;
+        return `(${min}:${sec})`;
+    }
+
+    /**
+     * 可拖移視窗化
+     * 
+     * @author ChaosOp <https://github.com/ChaosOp>
+     * @param {string} selector
+     */
+    function initDrag(selector) {
+        let dragElement = document.querySelector(selector);
+        if (dragElement.initedDrag) return;
+
+        let eventList = (window.ontouchstart === undefined) ?
+            (['mousedown', 'mousemove', 'mouseup'])
+            :
+            (['touchstart', 'touchmove', 'touchend']);
+
+        let [startEvt, moveEvt, endEvt] = eventList;
+
+
+        if (localStorage.tempPos) setElementPos(dragElement, ...(JSON.parse(localStorage.tempPos)));
+        dragElement.style.cursor = 'move';
+        dragElement.initedDrag = true;
+
+        dragElement.addEventListener(startEvt, (dragEvent) => {
+
+            dragEvent.preventDefault();
+
+            let startPos = getEventPos(dragEvent);
+
+            let distance = ["Left", "Top"].map((type, i) => startPos[i] - dragElement[`offset${type}`]);
+
+            let moveHandler = (event) => {
+                const border = document.documentElement.clientWidth - dragElement.offsetWidth;
+                let pos = getEventPos(event).map((pos, i) => Math.min(Math.max(pos - distance[i], 0), border));
+
+                setElementPos(dragElement, ...pos);
+            };
+
+            let endHandler = () => {
+                dragElement.removeEventListener(moveEvt, moveHandler);
+                dragElement.removeEventListener(endEvt, endHandler);
+            };
+
+            dragElement.addEventListener(moveEvt, moveHandler);
+            dragElement.addEventListener(endEvt, endHandler);
+        });
+
+        function getEventPos(event) {
+            return ["clientX", "clientY"].map((type) => event.touches?.[0][type] ?? event[type]);
+        }
+
+        function setElementPos(element, left, top) {
+            element.style.left = `${left}px`;
+            element.style.top = `${top}px`;
+            localStorage.tempPos = JSON.stringify([left, top]);
+        }
     }
 
     GM_addStyle(` 
         .global-buffs-area {
             font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
-            width: 512px;
+            width: fit-content;
             display: inline-block;
             user-select: none;
+            z-index: 1000;
+            border: 1px solid #abb3ba;
+            background-color: #000c;
         }
         
         global-effect {
@@ -361,8 +428,13 @@
             margin-left: 4px;
             background-color: #333;
             border-radius: 4px;
-            width: 5.25rem;
-            height: 1.5rem;
+            width: fit-content;
+            min-width: 125px;
+            height: 24px;
+        }
+
+        global-effect:first-child {
+            margin-left: 0;
         }
         
         global-effect.short {
@@ -371,32 +443,34 @@
         
         ge-name {
             display: inline-block;
-            margin: 0.1rem 2px;
-            font-size: 0.8rem;
+            margin: 2px 8px 2px 2px;
+            font-size: 14px;
         }
         
         ge-percent {
             display: inline-block;
-            margin: 0.3rem 2px;
-            font-size: 0.7rem;
+            margin: 2px 2px;
+            font-size: 14px;
             float: right;
         }
         
         ge-time {
             position: absolute;
             display: inline-block;
-            font-size: 0.5rem;
-            right: 2px;
-            top: 1.5rem;
+            font-size: 12px;
+            line-height: 16px;
+            right: 0px;
+            top: 24px;
         }
         
         ge-combo {
             font-family: monospace;
             position: absolute;
             display: inline-block;
-            font-size: 0.5rem;
-            left: 2px;
-            top: 1.5rem;
+            font-size: 12px;
+            line-height: 16px;
+            left: 0px;
+            top: 24px;
         }
     `);
 })();
