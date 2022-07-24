@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Module] CCO: 顯示全球增益
 // @namespace    -
-// @version      1.0
+// @version      1.1
 // @description  在頁面上方顯示全球增益，減少確認增益時的操作
 // @author       CCO Project
 // @match        https://cybercodeonline.com/*
@@ -9,34 +9,45 @@
 // @license      MIT
 // @grant        GM_addStyle
 // @run-at       document-start
+// @compatible   chrome >= 76
 // ==/UserScript==
 
+unsafeWindow.__debug_all_errors = [];
+
 (function () {
-    const EmptyMessage =  {
-        en: "沒有全球效應",
-        zh: "No Global Effect."
+    const EmptyMessage = {
+        en: "No Global Effects.",
+        zh: "沒有全球效應"
     };
 
     const GlobalBuffsTypeMap = {
-        "突觸": {
+        "交易": {
             lang: {
-                en: "Synapse",
-                zh: "突觸"
+                en: "Trade",
+                zh: "交易"
             },
-            ids: ["", "TIME_REDUCTION_GLOBAL_STACKABLE_2"],
-            max: 80
+            ids: ["BTC_MULTIPLIER_GLOBAL"],
+            max: 100
         },
         "額葉": {
             lang: {
-                en: "Frontal",
+                en: "Frnt.",
                 zh: "額葉"
             },
             ids: ["EXP_MULTIPLIER_GLOBAL"],
             max: 80
         },
+        "突觸": {
+            lang: {
+                en: "Syn.",
+                zh: "突觸"
+            },
+            ids: ["TIME_REDUCTION_GLOBAL_STACKABLE", "TIME_REDUCTION_GLOBAL_STACKABLE_2"],
+            max: 80
+        },
         "交易": {
             lang: {
-                en: "Transaction",
+                en: "Trade",
                 zh: "交易"
             },
             ids: ["BTC_MULTIPLIER_GLOBAL"],
@@ -44,7 +55,7 @@
         },
         "校準": {
             lang: {
-                en: "Calibration",
+                en: "Cali.",
                 zh: "校準"
             },
             ids: ["UPGRADE_CHANCE_GLOBAL_1", "UPGRADE_CHANCE_GLOBAL_2", "UPGRADE_CHANCE_GLOBAL_3", "UPGRADE_CHANCE_GLOBAL_4", "UPGRADE_CHANCE_GLOBAL_5"],
@@ -52,7 +63,7 @@
         },
         "防爆": {
             lang: {
-                en: "Cali. Safety",
+                en: "Prot.",
                 zh: "防爆"
             },
             ids: ["UPGRADE_NO_BREAK_GLOBAL"]
@@ -133,6 +144,23 @@
     const intervalIds = [];
     const timeoutIds = [];
     initUi();
+    unsafeWindow.__example = function () {
+        const buffs = [];
+        buffs.push(new Buff(false, "BTC_MULTIPLIER_GLOBAL", "交易", Date.now() + 1087 * 1000, 12, 100));
+        buffs.push(new Buff(false, "EXP_MULTIPLIER_GLOBAL", "額葉", Date.now() + 1200 * 1000, 87, 80));
+        buffs.push(new Buff(false, "TIME_REDUCTION_GLOBAL_STACKABLE", "突觸", Date.now() + 585 * 1000, 14, 70));
+        buffs.push(new Buff(false, "TIME_REDUCTION_GLOBAL_STACKABLE_2", "突觸", Date.now() + 932 * 1000, 21, 80));
+        buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_5", "校準", Date.now() + 70 * 1000, 1, 300));
+        buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_4", "校準", Date.now() + 68 * 1000, 2, 200));
+        buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_3", "校準", Date.now() + 66 * 1000, 2, 100));
+        buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_2", "校準", Date.now() + 65 * 1000, 2, 20));
+        buffs.push(new Buff(false, "UPGRADE_CHANCE_GLOBAL_1", "校準", Date.now() + 64 * 1000, 2, 10));
+        buffs.push(new Buff(true, "RNG_INTERFERER", "RNG", Date.now() + 15 * 1000));
+        buffs.push(new Buff(true, "UPGRADE_NO_BREAK_GLOBAL", "防爆", Date.now() + 18 * 1000));
+        
+        console.info(buffs);
+        updateUi(buffs);
+    };
 
     class Buff {
         /**
@@ -180,6 +208,7 @@
                 buffsArea.classList.add("global-buffs-area");
 
                 mainPanel.insertAdjacentElement("beforebegin", buffsArea);
+                updateUi([]);
             }
         }, 1);
     }
@@ -206,7 +235,9 @@
         Object.entries(GlobalBuffsTypeMap).forEach(([type, value]) => {
             const intersectionBuffs = availableBuffs.filter(buff => value.ids.includes(buff.id));
 
+            /** @type {string[]} */
             const combo = [];
+            /** @type {string[]} */
             const time = [];
             let totalPercent = 0;
             let showFlag = false;
@@ -217,7 +248,7 @@
 
                 if (diffMs > 0) {
                     showFlag = true;
-                    time.push(buff.endTime);
+                    time.push(buff.endTime.toString());
 
                     if (buff.isShort === false) {
                         const thisPercent = GlobalBuffsIdMap[buff.id].each.toString().padStart(3, ' ').replace(/\ /g, "&nbsp;");
@@ -239,22 +270,25 @@
                 let ge;
                 if (value.max) {
                     ge = getGlobalEffectElement(value.lang[LANG], time, {
+                        typeId: type,
                         percent: totalPercent,
                         combos: combo
                     });
                 } else {
                     ge = getGlobalEffectElement(value.lang[LANG], time, {
+                        typeId: type,
                         isShort: true
                     });
                 }
 
-                intervalIds.push(ge.intervalId);
-                buffsArea.insertAdjacentElement("beforeend", ge.element);
-                initDrag(".global-buffs-area");
-            } else {
-                buffsArea.innerHTML = EmptyMessage[LANG];
+                buffsArea.insertAdjacentElement("beforeend", ge);
             }
         });
+
+        if (buffsArea.children.length === 0) {
+            buffsArea.innerHTML = EmptyMessage[LANG];
+            initDrag(".global-buffs-area");
+        }
 
         buffsArea.style.height = `${Math.max((maxCombo - 1) * 17 + 60, 60)}px`;
     }
@@ -297,61 +331,92 @@
 
                 updateUi(buffs);
             }
-        } catch (e) { }
+        } catch (e) {
+            unsafeWindow.__debug_all_errors.push(e);
+        }
     }
 
     /**
      * 取得全球效應的 dom
      * 
      * @param {string} name 全球效應類型
-     * @param {number[]} endTime 截止時間戳
-     * @param {{isShort?: boolean, percent?: number, combos?: string[]}} options 其餘資訊
-     * @returns {{element: HTMLElement, intervalId: number}}
+     * @param {string[]} endTime 截止時間戳
+     * @param {{typeId: string, isShort?: boolean, percent?: number, combos?: string[]}} options 其餘資訊
+     * @returns {HTMLElement}
      */
     function getGlobalEffectElement(name, endTime, options = {}) {
         const ge = document.createElement("global-effect");
         const gen = document.createElement("ge-name");
         const get = document.createElement("ge-time");
+        const gep = document.createElement("ge-percent");
+        const gec = document.createElement("ge-combo");
 
         ge.append(gen, get);
         gen.innerHTML = name;
 
-        get.innerHTML = endTime.map(e => getTimeString(e)).join("<br>");
-
         if (options.isShort) {
             ge.classList.add("short");
         } else {
-            const gep = document.createElement("ge-percent");
-            const gec = document.createElement("ge-combo");
-
             gep.innerHTML = `${options.percent}%`;
-            gec.innerHTML = options.combos.join("<br>");
             ge.append(gep, gec);
         }
 
         const id = setInterval(() => {
             get.innerHTML = endTime.map(e => getTimeString(e)).join("<br>");
+
+            if (!options.isShort) {
+                gec.innerHTML = options.combos.join("<br>");
+            }
         }, 250);
 
-        return {
-            element: ge,
-            intervalId: id
-        };
+        intervalIds.push(id);
+
+        endTime.forEach((time, idx) => {
+            const threshold = 1 * 60 * 1000;
+            const diffMs = time - Date.now();
+
+            const tid = setTimeout(() => {
+
+                if (options.combos && !options.combos[idx].startsWith("<ge-sub")) {
+                    options.combos[idx] = `<ge-sub class="red">${options.combos[idx]}</ge-sub>`;
+                }
+
+                if (!endTime[idx].startsWith("<ge-sub")) {
+                    endTime[idx] = `<ge-sub class="red">${endTime[idx]}</ge-sub>`;
+                }
+
+                const totalPercent = endTime.filter(
+                    t => (t - Date.now()) < threshold
+                ).reduce(
+                    (result, t) => result += options.percent ? options.percent : 0,
+                    -1
+                );
+
+                if (totalPercent === -1 || totalPercent < GlobalBuffsTypeMap[options.typeId]) {
+                    ge.classList.add("red");
+                }
+            }, Math.max(diffMs - threshold, 0));
+
+            timeoutIds.push(tid);
+        });
+
+        return ge;
     }
 
     /**
      * 取得 mm:ss 的格式字串
      * 
-     * @param {number} ms
+     * @param {string} endTimeHTML
      * @returns {string}
      */
-    function getTimeString(ms) {
+    function getTimeString(endTimeHTML) {
+        const ms = endTimeHTML.match(/\d+/)[0] - 0;
         const now = Date.now();
         const diff = Math.floor((ms - now) / 1000);
         const min = (Math.floor(diff / 60)).toString().padStart(2, "0");
         const sec = (diff % 60).toString().padStart(2, "0");
 
-        return `(${min}:${sec})`;
+        return endTimeHTML.replace(ms, `(${min}:${sec})`);
     }
 
     /**
@@ -419,18 +484,23 @@
             user-select: none;
             z-index: 1000;
             border: 1px solid #abb3ba;
-            background-color: #000c;
+            background-color: #0005;
+            backdrop-filter: blur(5px);
         }
         
         global-effect {
             position: relative;
             display: inline-block;
             margin-left: 4px;
-            background-color: #333;
+            background-color: #333c;
             border-radius: 4px;
             width: fit-content;
             min-width: 125px;
             height: 24px;
+        }
+
+        global-effect.red {
+            background-color: #c00c;
         }
 
         global-effect:first-child {
@@ -438,7 +508,8 @@
         }
         
         global-effect.short {
-            width: fit-content;
+            width: 60px;
+            min-width: 60px;
         }
         
         ge-name {
@@ -460,7 +531,11 @@
             font-size: 12px;
             line-height: 16px;
             right: 0px;
-            top: 24px;
+            top: 25px;
+        }
+
+        ge-time ge-sub.red {
+            color: red;
         }
         
         ge-combo {
@@ -471,6 +546,10 @@
             line-height: 16px;
             left: 0px;
             top: 24px;
+        }
+
+        ge-combo ge-sub.red {
+            color: red;
         }
     `);
 })();
