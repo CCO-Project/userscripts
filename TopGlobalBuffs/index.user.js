@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Module] CCO: 顯示全球增益
 // @namespace    -
-// @version      1.2
+// @version      1.2.1
 // @description  在頁面上方顯示全球增益，減少確認增益時的操作
 // @author       CCO Project
 // @match        https://cybercodeonline.com/*
@@ -284,12 +284,14 @@ unsafeWindow.__debug_all_errors = [];
                 if (value.max) {
                     ge = getGlobalEffectElement(value.lang[LANG], time, {
                         typeId: type,
+                        buffs: intersectionBuffs,
                         percent: totalPercent,
                         combos: combo
                     });
                 } else {
                     ge = getGlobalEffectElement(value.lang[LANG], time, {
                         typeId: type,
+                        buffs: intersectionBuffs,
                         isShort: true
                     });
                 }
@@ -354,7 +356,7 @@ unsafeWindow.__debug_all_errors = [];
      * 
      * @param {string} name 全球效應類型
      * @param {string[]} endTime 截止時間戳
-     * @param {{typeId: string, isShort?: boolean, percent?: number, combos?: string[]}} options 其餘資訊
+     * @param {{typeId: string, buffs: Buff[], isShort?: boolean, percent?: number, combos?: string[]}} options 其餘資訊
      * @returns {HTMLElement}
      */
     function getGlobalEffectElement(name, endTime, options = {}) {
@@ -398,12 +400,14 @@ unsafeWindow.__debug_all_errors = [];
                     endTime[idx] = `<ge-sub class="red">${endTime[idx]}</ge-sub>`;
                 }
 
-                const totalPercent = endTime.filter(
-                    t => (t - Date.now()) > threshold
-                ).reduce(
-                    (result, t) => result += options.percent ? options.percent : 0,
-                    0
-                );
+                const totalPercent = endTime.reduce((result, t, idx) => {
+                    if(t - Date.now() > threshold) {
+                        const thisBuff = options.buffs[idx];
+                        result += thisBuff.percent;
+                    }
+
+                    return result;
+                }, 0);
 
                 if (totalPercent === 0 || totalPercent < GlobalBuffsTypeMap[options.typeId].max) {
                     ge.classList.add("red");
